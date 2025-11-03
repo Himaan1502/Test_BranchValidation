@@ -1,0 +1,47 @@
+name: Branch Validation Pipeline
+on:
+  pull_request:
+    branches: [ uat, main ]
+
+jobs:
+  validate:
+    name: Validate Branch Merge Rules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check authorized users
+        run: |
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          ALLOWED_USERS=("Himaan1502" "Celebal333")
+          
+          echo "PR Author: $PR_AUTHOR"
+          
+          if [[ ! " ${ALLOWED_USERS[@]} " =~ " ${PR_AUTHOR} " ]]; then
+            echo "Unauthorized user: $PR_AUTHOR is not allowed to create pull requests."
+            echo "Allowed users: ${ALLOWED_USERS[@]}"
+            exit 1
+          fi
+          
+          echo "User authorization check passed."
+      
+      - name: Check allowed source to target branches
+        run: |
+          TARGET_BRANCH=${{ github.event.pull_request.base.ref }}
+          SOURCE_BRANCH=${{ github.event.pull_request.head.ref }}
+          
+          echo "Target Branch: $TARGET_BRANCH"
+          echo "Source Branch: $SOURCE_BRANCH"
+          
+          if [ "$TARGET_BRANCH" = "uat" ] && [ "$SOURCE_BRANCH" != "dev" ]; then
+            echo "Invalid merge: Only 'dev' branch can merge into 'uat'."
+            exit 1
+          fi
+          
+          if [ "$TARGET_BRANCH" = "main" ] && [ "$SOURCE_BRANCH" != "uat" ]; then
+            echo "Invalid merge: Only 'uat' branch can merge into 'main'."
+            exit 1
+          fi
+          
+          echo "Branch flow validation passed successfully."
